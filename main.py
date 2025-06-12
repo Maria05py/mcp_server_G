@@ -2,35 +2,26 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import requests
 
+# Cargar el prompt maestro desde un archivo externo
+with open("prompt.txt", "r", encoding="utf-8") as f:
+    PROMPT_MAESTRO = f.read()
+
 app = FastAPI()
 
-API_KEY = "TU_API_KEY_DE_GEMINI"
+API_KEY = "TU_API_KEY_DE_GEMINI"  # <-- Reemplazar con tu clave
 ENDPOINT = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
 
-TEMPLATE = """
-Basado en los siguientes datos:
-Ubicación: {location}
-Tipo de cultivo: {plant_type}
-Humedad del suelo: {soil_moisture}%
-Temperatura: {temperature}°C
-Humedad relativa: {humidity}%
+# Modelo de entrada
+class Instruccion(BaseModel):
+    mensaje: str
 
-Genera una melodía breve y alegre en formato "nota,duración,nota,duración,...", usando notas musicales estándar de C3,C#3, hasta c7 y R para silencios), ideal para representar el estado del cultivo en forma musical. que las duraciones vayan entre 0 y 1. EN la respuesta solo quiero la melodía, sin texto antes ni depues.
-"""
-
-class ContextData(BaseModel):
-    location: str
-    plant_type: str
-    soil_moisture: float
-    temperature: float
-    humidity: float
-
-@app.post("/consulta")
-def consulta(data: ContextData):
-    prompt = TEMPLATE.format(**data.dict())
+@app.post("/code")
+def generar_codigo(data: Instruccion):
+    # Combinar el prompt maestro con el mensaje del usuario
+    prompt = f"{PROMPT_MAESTRO}\n\nInstrucción del usuario: {data.mensaje}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"maxOutputTokens": 100}
+        "generationConfig": {"maxOutputTokens": 1024}
     }
     headers = {"Content-Type": "application/json"}
     r = requests.post(ENDPOINT, headers=headers, json=payload)
